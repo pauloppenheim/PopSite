@@ -81,6 +81,16 @@ build_page_from_slug() {
 	cat $slug.header $slug.chunk footer.chunk.html > $slug.html
 }
 
+get_slugs() {
+	find . | grep -E '.md$' |  sed 's/^.\///g' | sed 's/.md$//g'
+}
+
+build_dir() {
+	for slug in $(get_slugs) ; do
+		build_page_from_slug "$slug"
+	done
+}
+
 export SCRIPTPATH=$0
 
 function usage {
