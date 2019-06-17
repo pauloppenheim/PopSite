@@ -1,0 +1,101 @@
+#!/bin/bash
+
+# This started as:
+# > if i can't write a basic blog generator in 25 minutes, then what am i even doing
+# and maintains the same ethos
+
+# Tracebacks in bash
+# https://docwhat.org/tracebacks-in-bash/
+#--------->8---------cut here---------8<---------
+set -eu
+
+trap _exit_trap EXIT
+trap _err_trap ERR
+_showed_traceback=f
+
+function _exit_trap
+{
+  local _ec="$?"
+  if [[ $_ec != 0 && "${_showed_traceback}" != t ]]; then
+    traceback 1
+  fi
+}
+
+function _err_trap
+{
+  local _ec="$?"
+  local _cmd="${BASH_COMMAND:-unknown}"
+  traceback 1
+  _showed_traceback=t
+  echo "The command ${_cmd} exited with exit code ${_ec}." 1>&2
+}
+
+function traceback
+{
+  # Hide the traceback() call.
+  local -i start=$(( ${1:-0} + 1 ))
+  local -i end=${#BASH_SOURCE[@]}
+  local -i i=0
+  local -i j=0
+
+  echo
+  echo "Traceback (last called is first):" 1>&2
+  for ((i=start; i < end; i++)); do
+    j=$(( i - 1 ))
+    local function="${FUNCNAME[$i]}"
+    local file="${BASH_SOURCE[$i]}"
+    local line="${BASH_LINENO[$j]}"
+    echo "     ${function}() in ${file}:${line}" 1>&2
+  done
+}
+#--------->8---------cut here---------8<---------
+
+
+get_title() {
+	local slug="$1"
+	head -1 "$slug.md"
+}
+
+gen_chunk_from_slug() {
+	local slug="$1"
+	cmark --unsafe --to html "$slug.md" > "$slug.chunk"
+}
+
+gen_header() {
+	local title="$1"
+	export HEADER_TITLE_REPLACEMENT_STRING="$title"
+	# TODO: what about a header title with a " in it?
+	cat header.chunk.html | perl -pe 's/HEADER_TITLE_REPLACEMENT_STRING/$ENV{"HEADER_TITLE_REPLACEMENT_STRING"}/'
+}
+
+gen_header_from_slug() {
+	local slug="$1"
+	local title="$(get_title $slug)"
+	gen_header "$title"
+}
+
+build_page_from_slug() {
+	local slug="$1"
+	gen_chunk_from_slug "$slug"
+	gen_header_from_slug "$slug" > $slug.header
+	cat $slug.header $slug.chunk footer.chunk.html > $slug.html
+}
+
+export SCRIPTPATH=$0
+
+function usage {
+  echo
+  echo "missing function (and possibly params). Options include:"
+  for func in $(grep -E '^\s*\w+\(\)' $SCRIPTPATH | sed 's/() {//' | sort) ; do
+    echo -e "\t$func"
+  done
+}
+
+ARGS=${1:-}
+if [[ "x$ARGS" = 'x' ]] ; then
+  usage
+else
+  $@
+fi
+
+
