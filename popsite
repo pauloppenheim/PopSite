@@ -58,6 +58,7 @@ get_title() {
 
 gen_chunk_from_slug() {
 	local slug="$1"
+	echo "gen_chunk_from_slug $slug.chunk"
 	cmark --unsafe --to html "$slug.md" > "$slug.chunk"
 }
 
@@ -76,9 +77,14 @@ gen_header_from_slug() {
 
 build_page_from_slug() {
 	local slug="$1"
+	echo "build_page_from_slug $slug"
 	gen_chunk_from_slug "$slug"
 	gen_header_from_slug "$slug" > $slug.header
 	cat $slug.header $slug.chunk footer.chunk.html > $slug.html
+}
+
+clean() {
+	rm -v *.chunk *.header
 }
 
 get_slugs() {
@@ -89,6 +95,7 @@ build_dir() {
 	for slug in $(get_slugs) ; do
 		build_page_from_slug "$slug"
 	done
+	clean
 }
 
 export SCRIPTPATH=$0
